@@ -7,7 +7,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
-// MIDDLEWARE
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
@@ -19,7 +19,7 @@ const verifyJWT = (req, res, next) => {
 			.status(401)
 			.send({ error: true, message: "unauthorized access" });
 	}
-	// BEARER TOKEN
+	// Bearer Token
 	const token = authorization.split(" ")[1];
 	jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
 		if (err) {
@@ -59,6 +59,23 @@ async function run() {
 				expiresIn: "1h",
 			});
 			res.send({ token });
+		});
+
+		// Generate Client Secret
+
+		app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+			const { price } = req.body;
+			const amount = parseFloat(price) * 100;
+			if (!price) return;
+			const paymentIntent = await stripe.paymentIntents.create({
+				amount: amount,
+				currency: "usd",
+				payment_method_types: ["card"],
+			});
+
+			res.send({
+				clientSecret: paymentIntent.client_secret,
+			});
 		});
 
 		const verifyAdmin = async (req, res, next) => {
