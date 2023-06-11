@@ -17,7 +17,7 @@ const verifyJWT = (req, res, next) => {
 			.status(401)
 			.send({ error: true, message: "unauthorized access" });
 	}
-	// Bearer Token
+	// BEARER TOKEN
 	const token = authorization.split(" ")[1];
 	jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
 		if (err) {
@@ -43,7 +43,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
 	try {
-		// Connect the client to the server	(optional starting in v4.7)
 		await client.connect();
 
 		const usersCollection = client.db("jazzYogaDB").collection("users");
@@ -61,6 +60,18 @@ async function run() {
 			res.send({ token });
 		});
 
+		const verifyAdmin = async (req, res, next) => {
+			const email = req.decoded.email;
+			const query = { email: email };
+			const user = await usersCollection.findOne(query);
+			if (user?.role !== "admin") {
+				return res
+					.status(403)
+					.send({ error: true, message: "forbidden message" });
+			}
+			next();
+		};
+
 		app.get("/instructor", async (req, res) => {
 			const result = await instructorCollector.find().toArray();
 			res.send(result);
@@ -71,18 +82,18 @@ async function run() {
 			res.send(result);
 		});
 
-		app.get("/carts", async (req, res) => {
+		app.get("/carts", verifyJWT, async (req, res) => {
 			const email = req.query.email;
 			if (!email) {
 				res.send([]);
 			}
 
-			/* const decodedEmail = req.decoded.email;
+			const decodedEmail = req.decoded.email;
 			if (email !== decodedEmail) {
 				return res
 					.status(403)
 					.send({ error: true, message: "forbidden access" });
-			} */
+			}
 			const query = { email: email };
 			const result = await cartCollection.find(query).toArray();
 			res.send(result);
@@ -104,7 +115,7 @@ async function run() {
 		});
 
 		// User related APIs
-		app.get("/users", async (req, res) => {
+		app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
 			const result = await usersCollection.find().toArray();
 			res.send(result);
 		});
@@ -122,6 +133,26 @@ async function run() {
 			}
 			const result = await usersCollection.insertOne(user);
 			res.send(result);
+		});
+
+		app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+			const email = req.params.email;
+			if (req.decoded.email !== email) {
+				res.send({ admin: false });
+			}
+			const query = { email: email };
+			const user = await usersCollection.findOne(query);
+			const result = {
+				admin: user?.role === "admin",
+			};
+			res.send(result);
+		});
+
+		app.get("/users/instructor/:email", async (req, res) => {
+			const email = req.params.email;
+			const user = await usersCollection.findOne({ email: email });
+			const isInstructor = user && user.role === "instructor";
+			res.json({ instructor: isInstructor });
 		});
 
 		app.patch("/users/admin/:id", async (req, res) => {
