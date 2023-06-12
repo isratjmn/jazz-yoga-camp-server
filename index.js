@@ -95,7 +95,7 @@ async function run() {
 			res.send(result);
 		});
 
-		app.patch("/classes/:id/status", async (req, res) => {
+		app.patch("/classes/status/:id", async (req, res) => {
 			const id = req.params.id;
 			const { status } = req.body;
 			console.log(id, status);
@@ -110,30 +110,6 @@ async function run() {
 			const result = await classesCollection.updateOne(filter, updateDoc);
 			res.send(result);
 		});
-
-		/* app.patch("/classes/:id/status", async (req, res) => {
-			try {
-				const id = req.params.id;
-				const { status } = req.body;
-
-				const filter = { _id: ObjectId(id) };
-				const updateDoc = { $set: { status } };
-
-				const result = await classesCollection.updateOne(
-					filter,
-					updateDoc
-				);
-
-				if (result.matchedCount === 0) {
-					return res.status(404).json({ message: "Class not found" });
-				}
-
-				res.json({ message: "Class status updated successfully" });
-			} catch (error) {
-				console.error(error);
-				res.status(500).json({ message: "Internal server error" });
-			}
-		}); */
 
 		app.get("/carts", verifyJWT, async (req, res) => {
 			const email = req.query.email;
