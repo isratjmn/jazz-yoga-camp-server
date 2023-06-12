@@ -106,7 +106,6 @@ async function run() {
 					status: status,
 				},
 			};
-
 			const result = await classesCollection.updateOne(filter, updateDoc);
 			res.send(result);
 		});
@@ -176,16 +175,6 @@ async function run() {
 			};
 			res.send(result);
 		});
-
-		/*app.get("/classes", async (req, res) => {
-			try {
-				const classes = await usersCollection.find().toArray();
-				res.send(classes);
-			} catch (error) {
-				console.log(error);
-				res.status(500).send("Internal Server Error");
-			}
-		}); */
 
 		app.get("/users/instructor/:email", async (req, res) => {
 			const email = req.params.email;
