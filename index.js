@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const jwt = require("jsonwebtoken");
-const morgan = require('morgan')
+const morgan = require("morgan");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 // MIDDLEWARE
 app.use(cors());
 app.use(express.json());
-app.use(morgan('dev'))
+app.use(morgan("dev"));
 
 const verifyJWT = (req, res, next) => {
 	const authorization = req.headers.authorization;
@@ -34,7 +34,6 @@ const verifyJWT = (req, res, next) => {
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ocimcqo.mongodb.net/?retryWrites=true&w=majority`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
 	serverApi: {
 		version: ServerApiVersion.v1,
@@ -45,7 +44,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
 	try {
-		await client.connect();
+		client.connect();
 
 		const usersCollection = client.db("jazzYogaDB").collection("users");
 		const instructorCollector = client
@@ -88,6 +87,53 @@ async function run() {
 			const result = await classesCollection.find().toArray();
 			res.send(result);
 		});
+
+		app.post("/classes", async (req, res) => {
+			const newItem = req.body;
+			console.log(newItem);
+			const result = await classesCollection.insertOne(newItem);
+			res.send(result);
+		});
+
+		app.patch("/classes/:id/status", async (req, res) => {
+			const id = req.params.id;
+			const { status } = req.body;
+			console.log(id, status);
+
+			const filter = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					status: status,
+				},
+			};
+
+			const result = await classesCollection.updateOne(filter, updateDoc);
+			res.send(result);
+		});
+
+		/* app.patch("/classes/:id/status", async (req, res) => {
+			try {
+				const id = req.params.id;
+				const { status } = req.body;
+
+				const filter = { _id: ObjectId(id) };
+				const updateDoc = { $set: { status } };
+
+				const result = await classesCollection.updateOne(
+					filter,
+					updateDoc
+				);
+
+				if (result.matchedCount === 0) {
+					return res.status(404).json({ message: "Class not found" });
+				}
+
+				res.json({ message: "Class status updated successfully" });
+			} catch (error) {
+				console.error(error);
+				res.status(500).json({ message: "Internal server error" });
+			}
+		}); */
 
 		app.get("/carts", verifyJWT, async (req, res) => {
 			const email = req.query.email;
@@ -155,7 +201,7 @@ async function run() {
 			res.send(result);
 		});
 
-/* 		app.get("/classes", async (req, res) => {
+		/*app.get("/classes", async (req, res) => {
 			try {
 				const classes = await usersCollection.find().toArray();
 				res.send(classes);
@@ -197,7 +243,6 @@ async function run() {
 			const result = await usersCollection.updateOne(filter, updateDoc);
 			res.send(result);
 		});
-
 		// Send a ping to confirm a successful connection
 		await client.db("admin").command({ ping: 1 });
 		console.log(
