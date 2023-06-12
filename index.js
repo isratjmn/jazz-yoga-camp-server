@@ -33,7 +33,6 @@ const verifyJWT = (req, res, next) => {
 };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ocimcqo.mongodb.net/?retryWrites=true&w=majority`;
-
 const client = new MongoClient(uri, {
 	serverApi: {
 		version: ServerApiVersion.v1,
@@ -83,6 +82,8 @@ async function run() {
 			const result = await reviewsCollector.find().toArray();
 			res.send(result);
 		});
+
+		// Class Related APIs
 		app.get("/classes", async (req, res) => {
 			const result = await classesCollection.find().toArray();
 			res.send(result);
@@ -110,6 +111,7 @@ async function run() {
 			res.send(result);
 		});
 
+		// Cart Related APIs
 		app.get("/carts", verifyJWT, async (req, res) => {
 			const email = req.query.email;
 			if (!email) {
@@ -142,7 +144,7 @@ async function run() {
 			res.send(result);
 		});
 
-		// User related APIs
+		// User Related APIs
 		app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
 			const result = await usersCollection.find().toArray();
 			res.send(result);
