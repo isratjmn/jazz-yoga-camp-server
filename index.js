@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const jwt = require("jsonwebtoken");
+const morgan = require('morgan')
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -9,6 +10,7 @@ const port = process.env.PORT || 5000;
 // MIDDLEWARE
 app.use(cors());
 app.use(express.json());
+app.use(morgan('dev'))
 
 const verifyJWT = (req, res, next) => {
 	const authorization = req.headers.authorization;
