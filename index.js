@@ -51,6 +51,7 @@ async function run() {
 			.collection("instructor");
 		const reviewsCollector = client.db("jazzYogaDB").collection("reviews");
 		const cartCollection = client.db("jazzYogaDB").collection("carts");
+		const classesCollection = client.db("jazzYogaDB").collection("classes");
 
 		app.post("/jwt", (req, res) => {
 			const user = req.body;
@@ -81,6 +82,10 @@ async function run() {
 			const result = await reviewsCollector.find().toArray();
 			res.send(result);
 		});
+		app.get("/classes", async (req, res) => {
+			const result = await classesCollection.find().toArray();
+			res.send(result);
+		});
 
 		app.get("/carts", verifyJWT, async (req, res) => {
 			const email = req.query.email;
@@ -100,9 +105,9 @@ async function run() {
 		});
 
 		app.post("/carts", async (req, res) => {
-			const item = req.body;
-			console.log(item);
-			const result = await cartCollection.insertOne(item);
+			const newItem = req.body;
+			console.log(newItem);
+			const result = await cartCollection.insertOne(newItem);
 			res.send(result);
 		});
 
@@ -147,6 +152,16 @@ async function run() {
 			};
 			res.send(result);
 		});
+
+/* 		app.get("/classes", async (req, res) => {
+			try {
+				const classes = await usersCollection.find().toArray();
+				res.send(classes);
+			} catch (error) {
+				console.log(error);
+				res.status(500).send("Internal Server Error");
+			}
+		}); */
 
 		app.get("/users/instructor/:email", async (req, res) => {
 			const email = req.params.email;
