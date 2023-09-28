@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // Middleware
@@ -44,15 +45,17 @@ const client = new MongoClient(uri, {
 async function run() {
 	try {
 		client.connect();
-
+		// Collections setup
 		const usersCollection = client.db("jazzYogaDB").collection("users");
 		const instructorCollector = client
 			.db("jazzYogaDB")
 			.collection("instructor");
 		const reviewsCollector = client.db("jazzYogaDB").collection("reviews");
+		const paymentCollection = client.db("jazzYogaDB").collection("payments");
 		const cartCollection = client.db("jazzYogaDB").collection("carts");
 		const classesCollection = client.db("jazzYogaDB").collection("classes");
 
+		// Generate JWT web token
 		app.post("/jwt", (req, res) => {
 			const user = req.body;
 			const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
@@ -61,22 +64,16 @@ async function run() {
 			res.send({ token });
 		});
 
-		// Generate Client Secret
+		
+		/* app.get("/payment-history", verifyJWT, async (req, res) => {
+			const query = { userEmail: req.query.email };
+			const result = await paymentCollection
+				.find(query)
+				.sort({ createdAt: -1 })
+				.toArray();
+			res.send(result);
+		}); */
 
-		app.post("/create-payment-intent", verifyJWT, async (req, res) => {
-			const { price } = req.body;
-			const amount = parseFloat(price) * 100;
-			if (!price) return;
-			const paymentIntent = await stripe.paymentIntents.create({
-				amount: amount,
-				currency: "usd",
-				payment_method_types: ["card"],
-			});
-
-			res.send({
-				clientSecret: paymentIntent.client_secret,
-			});
-		});
 
 		const verifyAdmin = async (req, res, next) => {
 			const email = req.decoded.email;
@@ -89,6 +86,60 @@ async function run() {
 			}
 			next();
 		};
+
+		// Create Payment Intent/ Generate Client Intent
+		app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+			const { price } = req.body;
+
+			const amount = parseFloat(price) * 100;
+			console.log(price, amount);
+			if (!price) return;
+			const paymentIntent = await stripe.paymentIntents.create({
+				amount: amount,
+				currency: "usd",
+				payment_method_types: ["card"],
+			});
+
+			res.send({
+				clientSecret: paymentIntent.client_secret,
+			});
+		});
+
+		// Save Payment
+		app.post("/payments", verifyJWT, async (req, res) => {
+			const payment = req.body;
+			const insertResult = await paymentCollection.insertOne(payment);
+			res.send({insertResult})
+		});
+
+		app.get('/api/enrolled-classes/:email', verifyJWT, async (req, res) => {
+			try {
+				const enrolledClasses = await Payments.aggregate([
+					{
+					$match: {
+						email: req.params.email
+					}
+					},
+					{
+					$lookup: {
+						from: 'classes',
+						localField: 'classId',
+						foreignField: '_id',
+						as: 'classDetails'
+					}
+					},
+					{
+					$unwind: '$classDetails'
+					}
+				])
+				.sort({ date: -1 })
+				.toArray();
+			
+				res.send(enrolledClasses);
+				} catch (error) {
+				res.status(500).send({ error: error.message });
+				}
+			});
 
 		app.get("/instructor", async (req, res) => {
 			const result = await instructorCollector.find().toArray();
