@@ -63,18 +63,6 @@ async function run() {
 			});
 			res.send({ token });
 		});
-
-		
-		/* app.get("/payment-history", verifyJWT, async (req, res) => {
-			const query = { userEmail: req.query.email };
-			const result = await paymentCollection
-				.find(query)
-				.sort({ createdAt: -1 })
-				.toArray();
-			res.send(result);
-		}); */
-
-
 		const verifyAdmin = async (req, res, next) => {
 			const email = req.decoded.email;
 			const query = { email: email };
@@ -90,7 +78,6 @@ async function run() {
 		// Create Payment Intent/ Generate Client Intent
 		app.post("/create-payment-intent", verifyJWT, async (req, res) => {
 			const { price } = req.body;
-
 			const amount = parseFloat(price) * 100;
 			console.log(price, amount);
 			if (!price) return;
@@ -99,7 +86,6 @@ async function run() {
 				currency: "usd",
 				payment_method_types: ["card"],
 			});
-
 			res.send({
 				clientSecret: paymentIntent.client_secret,
 			});
@@ -112,34 +98,18 @@ async function run() {
 			res.send({insertResult})
 		});
 
-		app.get('/api/enrolled-classes/:email', verifyJWT, async (req, res) => {
-			try {
-				const enrolledClasses = await Payments.aggregate([
-					{
-					$match: {
-						email: req.params.email
-					}
-					},
-					{
-					$lookup: {
-						from: 'classes',
-						localField: 'classId',
-						foreignField: '_id',
-						as: 'classDetails'
-					}
-					},
-					{
-					$unwind: '$classDetails'
-					}
-				])
-				.sort({ date: -1 })
-				.toArray();
-			
-				res.send(enrolledClasses);
-				} catch (error) {
-				res.status(500).send({ error: error.message });
-				}
+		app.get("/enrolled-classes", async (req, res) => {
+			const email = req.query.email;
+			if (!email) return res.send([]);
+			if (req.decoded.email !== email)
+			return res.status(401).send({
+				error: true,
+				message: "Forbidden access token for enrolled classes",
 			});
+			const query = { userEmail: email };
+			const enrolledClasses = await paymentCollection.find(query).toArray();
+			res.send(enrolledClasses);
+		});
 
 		app.get("/instructor", async (req, res) => {
 			const result = await instructorCollector.find().toArray();
