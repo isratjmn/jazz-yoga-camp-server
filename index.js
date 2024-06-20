@@ -51,10 +51,14 @@ async function run() {
 			.db("jazzYogaDB")
 			.collection("instructor");
 		const reviewsCollector = client.db("jazzYogaDB").collection("reviews");
-		const paymentCollection = client.db("jazzYogaDB").collection("payments");
 		const cartCollection = client.db("jazzYogaDB").collection("carts");
 		const classesCollection = client.db("jazzYogaDB").collection("classes");
-
+		const paymentCollection = client
+			.db("jazzYogaDB")
+			.collection("payments");
+		const selectedClassCollection = client
+			.db("rhymoveDB")
+			.collection("selectedClass");
 		// Generate JWT web token
 		app.post("/jwt", (req, res) => {
 			const user = req.body;
@@ -90,25 +94,87 @@ async function run() {
 				clientSecret: paymentIntent.client_secret,
 			});
 		});
-
 		// Save Payment
 		app.post("/payments", verifyJWT, async (req, res) => {
 			const payment = req.body;
 			const insertResult = await paymentCollection.insertOne(payment);
-			res.send({insertResult})
+			const query = { _id: new ObjectId(payment.cartItems) };
+			const updateDoc = {
+				$set: {
+					status: "paid",
+				},
+			};
+			const updateResult = await classesCollection.updateOne(
+				query,
+				updateDoc
+			);
+			const classQuery = { _id: new ObjectId(payment.selectedClassId) };
+			const updateClass = {
+				$inc: { enrolledStudents: 1, availableSeats: -1 },
+			};
+			const updateClasses = await classesCollection.updateOne(
+				classQuery,
+				updateClass
+			);
+			const updateSelectedClasses =
+				await selectedClassCollection.updateOne(query, updateClass);
+			res.send({
+				insertResult,
+				updateResult,
+				updateClasses,
+				updateSelectedClasses,
+			});
 		});
 
-		app.get("/enrolled-classes", async (req, res) => {
+		app.get("/payment-history", verifyJWT, async (req, res) => {
+			const query = { userEmail: req.query.email };
+			const result = await paymentCollection
+				.find(query)
+				.sort({ date: -1 })
+				.toArray();
+			res.send(result);
+		});
+
+		app.get("/enrolled-classes/email", verifyJWT, async (req, res) => {
 			const email = req.query.email;
 			if (!email) return res.send([]);
-			if (req.decoded.email !== email)
-			return res.status(401).send({
-				error: true,
-				message: "Forbidden access token for enrolled classes",
-			});
-			const query = { userEmail: email };
-			const enrolledClasses = await paymentCollection.find(query).toArray();
-			res.send(enrolledClasses);
+
+			if (req.decoded.email !== email) {
+				return res.status(401).send({
+					error: true,
+					message: "Forbidden access token for enrolled classes",
+				});
+			}
+
+			try {
+				const query = { userEmail: email };
+				const enrolledClasses = await paymentCollection
+					.aggregate([
+						{
+							$match: query,
+						},
+						{
+							$lookup: {
+								from: "classes",
+								localField: "cartItems",
+								foreignField: "_id",
+								as: "classDetails",
+							},
+						},
+						{
+							$unwind: "$classDetails",
+						},
+					])
+					.toArray();
+
+				res.send(enrolledClasses);
+			} catch (error) {
+				console.error(error);
+				res.status(500).send({
+					error: true,
+					message: "Internal Server Error",
+				});
+			}
 		});
 
 		app.get("/instructor", async (req, res) => {
@@ -120,7 +186,7 @@ async function run() {
 			const result = await reviewsCollector.find().toArray();
 			res.send(result);
 		});
-
+		
 		// Class Related APIs
 		app.get("/classes", async (req, res) => {
 			const result = await classesCollection.find().toArray();
