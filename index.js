@@ -59,7 +59,6 @@ async function run() {
 		const selectedClassCollection = client
 			.db("rhymoveDB")
 			.collection("selectedClass");
-		// Generate JWT web token
 		app.post("/jwt", (req, res) => {
 			const user = req.body;
 			const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
@@ -186,7 +185,7 @@ async function run() {
 			const result = await reviewsCollector.find().toArray();
 			res.send(result);
 		});
-		
+
 		// Class Related APIs
 		app.get("/classes", async (req, res) => {
 			const result = await classesCollection.find().toArray();
